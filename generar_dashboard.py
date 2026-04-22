@@ -50,7 +50,6 @@ mensual_full = mensual_full.sort_values(["Anio", "Mes"]).reset_index(drop=True)
 hoy = date.today()
 m_entrenamiento = mensual_full[~((mensual_full["Anio"] == hoy.year) & (mensual_full["Mes"] == hoy.month))].copy()
 
-# Variables Dummy para Estacionalidad
 for m in range(1, 12):
     m_entrenamiento[f"Mes_{m}"] = (m_entrenamiento["Mes"] == m).astype(int)
 
@@ -78,136 +77,100 @@ def predecir_estacional(anio, mes, l1, l2, l3):
     xn = (x - X_mean) / X_std
     return (coef[0] + np.dot(coef[1:], xn)) * y_std + y_mean
 
-# --- PREDICCIONES HASTA FIN DE AÑO ---
+# --- PREDICCIONES ---
 ultimo_cerrado = m_entrenamiento.iloc[-1]
 lags = [float(ultimo_cerrado["Neto"]), float(m_entrenamiento.iloc[-2]["Neto"]), float(m_entrenamiento.iloc[-3]["Neto"])]
 predicciones_raw = []
 m_act, a_act = int(ultimo_cerrado["Mes"]), int(ultimo_cerrado["Anio"])
-pasos = (12 - m_act) if a_act == hoy.year else 12 
+pasos = 12 - m_act if a_act == hoy.year else 12
 
 for i in range(pasos):
     m_act += 1
     if m_act > 12: m_act = 1; a_act += 1
     p = predecir_estacional(a_act, m_act, lags[0], lags[1], lags[2])
-    predicciones_raw.append({"Anio": int(a_act), "Mes": int(m_act), "Neto": round(p, 2), "Tipo": "Predicción"})
+    predicciones_raw.append({"Anio": int(a_act), "Mes": int(m_act), "Neto": p})
     lags = [p, lags[0], lags[1]]
 
-# --- PREPARACIÓN DE DATA COMPLETA PARA JS ---
+# --- DATA JS ---
 nombres_meses = {1:"Ene",2:"Feb",3:"Mar",4:"Abr",5:"May",6:"Jun",7:"Jul",8:"Ago",9:"Sep",10:"Oct",11:"Nov",12:"Dic"}
+data_js = []
+for idx, r in mensual_full.iterrows():
+    l1 = mensual_full.loc[idx-1, "Neto"] if idx > 0 else None
+    l2 = mensual_full.loc[idx-2, "Neto"] if idx > 1 else None
+    l3 = mensual_full.loc[idx-3, "Neto"] if idx > 2 else None
+    p_val = round(predecir_estacional(r['Anio'], r['Mes'], l1, l2, l3)/1e6, 2) if l3 is not None else None
+    data_js.append({"label": f"{nombres_meses[int(r['Mes'])]} {int(r['Anio'])}", "anio": int(r['Anio']), "mes": int(r['Mes']), "neto": round(r['Neto']/1e6, 2), "pred": p_val})
 
-historico_js = []
-for _, r in mensual_full.iterrows():
-    # Calcular tendencia para cada punto histórico
-    lag1 = mensual_full.loc[_-1, "Neto"] if _ > 0 else None
-    lag2 = mensual_full.loc[_-2, "Neto"] if _ > 1 else None
-    lag3 = mensual_full.loc[_-3, "Neto"] if _ > 2 else None
-    
-    pred_val = None
-    if lag3 is not None:
-        pred_val = round(predecir_estacional(r["Anio"], r["Mes"], lag1, lag2, lag3) / 1e6, 2)
-
-    historico_js.append({
-        "label": f"{nombres_meses[int(r['Mes'])]} {int(r['Anio'])}",
-        "anio": int(r['Anio']),
-        "mes": int(r['Mes']),
-        "neto": round(r['Neto'] / 1e6, 2),
-        "pred": pred_val,
-        "tipo": "Real"
-    })
-
-futuro_js = []
 for p in predicciones_raw:
-    futuro_js.append({
-        "label": f"{nombres_meses[p['Mes']]} {p['Anio']}",
-        "anio": p['Anio'],
-        "mes": p['Mes'],
-        "neto": None,
-        "pred": round(p['Neto'] / 1e6, 2),
-        "tipo": "Predicción"
-    })
+    data_js.append({"label": f"{nombres_meses[p['Mes']]} {p['Anio']}", "anio": p['Anio'], "mes": p['Mes'], "neto": None, "pred": round(p['Neto']/1e6, 2)})
 
-full_data = historico_js + futuro_js
+years_options = sorted(list(mensual_full['Anio'].unique()))
+cards_html = "".join([f'<div class="card"><div class="card-label">{nombres_meses[p["Mes"]]} {p["Anio"]}</div><div class="card-value">$ {p["Neto"]/1e6:,.1f} M</div></div>' for p in predicciones_raw[:3]])
 
-# HTML Interactivo
 html_content = f"""
-<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard Interactivo</title>
+<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-    body{{font-family:'Segoe UI',sans-serif;background:#f4f7f6;padding:20px;color:#333}}
+    body{{font-family:sans-serif;background:#f4f7f6;padding:20px;color:#333}}
     .container{{max-width:1100px;margin:auto}}
     .header{{background:#fff;padding:20px;border-radius:12px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
     .logo{{max-height:60px}}
-    .filters{{background:#fff;padding:20px;border-radius:12px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
-    select{{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;outline:none;height:100px}}
-    .chart-box{{background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
-    .info{{margin-top:20px;font-size:13px;color:#666;line-height:1.6}}
+    .cards{{display:flex;gap:15px;margin-bottom:20px}}
+    .card{{flex:1;background:#fff;padding:15px;border-radius:12px;text-align:center;border-bottom:4px solid #1a4fa0;box-shadow:0 2px 4px rgba(0,0,0,0.05)}}
+    .card-label{{font-size:11px;color:#888;text-transform:uppercase}}
+    .card-value{{font-size:22px;font-weight:bold;color:#1a4fa0}}
+    .filters{{background:#fff;padding:20px;border-radius:12px;margin-bottom:20px;display:flex;gap:20px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
+    .filter-group{{flex:1}}
+    select{{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;height:80px}}
+    .chart-box{{background:#fff;padding:20px;border-radius:12px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
+    .info{{margin-top:20px;background:#eef2f7;padding:20px;border-radius:12px;font-size:14px;line-height:1.6}}
 </style></head><body>
 <div class="container">
     <div class="header">
         <img src="logo_dm.png" alt="DM" class="logo">
-        <div style="text-align:right"><h1>Dashboard Interactivo</h1><p>Control total de visualización</p></div>
+        <div style="text-align:right"><h1>Dashboard Interactivo</h1><p>Ventas Nominales Proyectadas</p></div>
     </div>
-
+    <div class="cards">{cards_html}</div>
     <div class="filters">
-        <div>
-            <label><b>Filtrar por Año(s):</b> (Ctrl/Cmd + clic para varios)</label>
-            <select id="yearFilter" multiple onchange="updateChart()">
-                {"".join([f'<option value="{a}" selected>{a}</option>' for a in sorted(mensual_full['Anio'].unique())])}
+        <div class="filter-group"><label><b>Años (Multiselección):</b></label><br>
+            <select id="yF" multiple onchange="uC()">
+                {"".join([f'<option value="{a}" selected>{a}</option>' for a in years_options])}
             </select>
         </div>
-        <div>
-            <label><b>Filtrar por Mes(es):</b></label>
-            <select id="monthFilter" multiple onchange="updateChart()">
+        <div class="filter-group"><label><b>Meses:</b></label><br>
+            <select id="mF" multiple onchange="uC()">
                 {"".join([f'<option value="{i}" selected>{n}</option>' for i, n in nombres_meses.items()])}
             </select>
         </div>
     </div>
-    
     <div class="chart-box"><canvas id="chart"></canvas></div>
-
     <div class="info">
-        <h3>Nota del Modelo</h3>
-        <p>Este gráfico es interactivo. Puedes seleccionar combinaciones de años y meses para comparar rendimientos estacionales. La línea naranja representa la predicción basada en la inercia de los últimos meses y el comportamiento histórico del mes seleccionado.</p>
+        <h3>¿Cómo funciona este modelo?</h3>
+        <p>Este sistema utiliza <b>IA Estacional</b>: analiza los últimos 5 años de historia para entender que cada mes tiene un comportamiento único. Se basa en "Lags" (inercia de ventas de los últimos 3 meses cerrados) y variables estacionales para proyectar el resto del año. El mes en curso se excluye del entrenamiento para no distorsionar la tendencia.</p>
     </div>
 </div>
-
 <script>
-    const fullData = {full_data};
-    let chart;
-
-    function updateChart() {{
-        const selectedYears = Array.from(document.getElementById('yearFilter').selectedOptions).map(o => parseInt(o.value));
-        const selectedMonths = Array.from(document.getElementById('monthFilter').selectedOptions).map(o => parseInt(o.value));
-        
-        const filtered = fullData.filter(d => selectedYears.includes(d.anio) && selectedMonths.includes(d.mes));
-        
-        const labels = filtered.map(d => d.label);
-        const netos = filtered.map(d => d.neto);
-        const preds = filtered.map(d => d.pred);
-
-        if(chart) chart.destroy();
-        
-        const ctx = document.getElementById('chart').getContext('2d');
-        chart = new Chart(ctx, {{
+    const d = {data_js}; let c;
+    function uC() {{
+        const sY = Array.from(document.getElementById('yF').selectedOptions).map(o=>parseInt(o.value));
+        const sM = Array.from(document.getElementById('mF').selectedOptions).map(o=>parseInt(o.value));
+        const f = d.filter(x => sY.includes(x.anio) && sM.includes(x.mes));
+        if(c) c.destroy();
+        c = new Chart(document.getElementById('chart'), {{
             type: 'bar',
             data: {{
-                labels: labels,
+                labels: f.map(x=>x.label),
                 datasets: [
-                    {{ label: 'Ventas Reales (M)', data: netos, backgroundColor: '#1a4fa0', borderRadius: 5 }},
-                    {{ label: 'Tendencia/Predicción (M)', data: preds, type: 'line', borderColor: '#f28e2b', tension: 0.3, pointRadius: 4 }}
+                    {{ label: 'Ventas Reales (M)', data: f.map(x=>x.neto), backgroundColor: '#1a4fa0', borderRadius: 5 }},
+                    {{ label: 'Proyección IA (M)', data: f.map(x=>x.pred), type: 'line', borderColor: '#f28e2b', tension: 0.3 }}
                 ]
             }},
-            options: {{
-                responsive: true,
-                scales: {{ y: {{ beginAtZero: true, ticks: {{ callback: v => '$' + v + 'M' }} }} }}
-            }}
+            options: {{ scales: {{ y: {{ beginAtZero: true, ticks: {{ callback: v => '$'+v+'M' }} }} }} }}
         }});
     }}
-    
-    updateChart(); // Carga inicial
+    uC();
 </script></body></html>
 """
 
 with open("index.html", "w", encoding="utf-8") as f:
     f.write(html_content)
-print("Dashboard interactivo generado.")
