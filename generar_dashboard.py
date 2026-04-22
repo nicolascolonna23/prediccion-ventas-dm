@@ -95,7 +95,12 @@ nombres = {1:"Ene",2:"Feb",3:"Mar",4:"Abr",5:"May",6:"Jun",7:"Jul",8:"Ago",9:"Se
 etiq_hist = [f"{nombres[int(r.Mes)]} {int(r.Anio)}" for _, r in mensual_dash.iterrows()]
 netos_hist = [round(r.Neto / 1e6, 1) for _, r in mensual_dash.iterrows()]
 
-# Cálculo de tendencia para el gráfico (basado en el modelo de meses cerrados)
+# --- 1. AJUSTE DE ETIQUETAS PARA NO DUPLICAR ---
+# Eliminamos la etiqueta del mes actual de las etiquetas históricas del eje X
+if not etiq_hist.empty and (hoy.month == mensual_dash.iloc[-1]["Mes"]) and (hoy.year == mensual_dash.iloc[-1]["Anio"]):
+    etiq_hist = etiq_hist[:-1] # Removemos la última etiqueta histórica (el mes abierto)
+
+# Cálculo de tendencia para el gráfico
 preds_hist = []
 # Re-calculamos lags sobre el dash para que la línea se dibuje incluso en el mes abierto
 mensual_dash["L1"] = mensual_dash["Neto"].shift(1)
@@ -103,7 +108,6 @@ mensual_dash["L2"] = mensual_dash["Neto"].shift(2)
 mensual_dash["L3"] = mensual_dash["Neto"].shift(3)
 
 for _, r in mensual_dash.iterrows():
-    # Solo dibujamos tendencia si tenemos historia para ese punto
     if pd.notnull(r.L3):
         preds_hist.append(round(predecir_nominal(r.Anio, r.Mes, r.L1, r.L2, r.L3)/1e6, 1))
     else:
@@ -112,27 +116,30 @@ for _, r in mensual_dash.iterrows():
 etiq_fut = [f"{nombres[m]} {a}" for a, m, p in predicciones]
 preds_fut = [round(p / 1e6, 1) for a, m, p in predicciones]
 
+# --- 2. UNIFICACIÓN DE ETIQUETAS ---
+# Ahora las etiquetas del eje X serán: (Meses cerrados hasta Marzo) + (Meses proyectados Abr, May, Jun)
 etiquetas = etiq_hist + etiq_fut
 netos_js  = "[" + ",".join(str(v) for v in netos_hist) + "," + ",".join("null" for _ in predicciones) + "]"
 preds_js  = "[" + ",".join(str(v) if v is not None else "null" for v in preds_hist) + "," + ",".join(str(v) for v in preds_fut) + "]"
 
-# HTML
+# HTML (Idem anterior)
+hoy_txt = hoy.strftime("%d/%m/%Y")
 cards_html = "".join([f'<div class="card"><div class="card-label">{nombres[m]} {a}</div><div class="card-value">$ {p/1e6:,.1f} M</div></div>' for a,m,p in predicciones])
 
 html_content = f"""
-<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard</title>
+<!DOCTYPE html><html><head><meta charset='utf-8'><title>Dashboard Ventas DM</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
     body{{font-family:sans-serif;background:#f8f9fa;padding:20px}}
     .container{{max-width:900px;margin:auto}}
-    .header{{background:#fff;padding:20px;border-radius:10px;margin-bottom:20px;border-left:5px solid #1a4fa0}}
+    .header{{background:#fff;padding:15px;border-radius:10px;margin-bottom:20px;border-left:5px solid #1a4fa0}}
     .cards{{display:flex;gap:15px;margin-bottom:20px}}
     .card{{flex:1;background:#fff;padding:15px;border-radius:10px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05)}}
     .card-label{{font-size:11px;color:#888;text-transform:uppercase}}
-    .card-value{{font-size:22px;font-weight:bold;color:#1a4fa0}}
+    .card-value{{font-size:20px;font-weight:bold;color:#1a4fa0}}
 </style></head><body>
 <div class="container">
-    <div class="header"><h1>DM Vencemos Distancias</h1><p>Modelo entrenado únicamente con meses cerrados (Historia completa 2021-2026)</p></div>
+    <div class="header"><h1>DM Vencemos Distancias</h1><p>Proyecciones Nominales | Mes actual excluido del entrenamiento por tu pedido. Datos: {hoy_txt}</p></div>
     <div class="cards">{cards_html}</div>
     <div style="background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 5px rgba(0,0,0,0.05);"><canvas id="chart"></canvas></div>
 </div>
@@ -142,7 +149,7 @@ html_content = f"""
         data: {{
             labels: {etiquetas},
             datasets: [
-                {{ label: 'Facturado (M)', data: {netos_js}, backgroundColor: '#1a4fa0', borderRadius: 5 }},
+                {{ label: 'Facturado (M)', data: {netos_js}, backgroundColor: '#1a4fa0', borderRadius: 4 }},
                 {{ label: 'Proyección Modelo (M)', data: {preds_js}, type: 'line', borderColor: '#f28e2b', tension: 0.3, pointRadius: 4 }}
             ]
         }},
@@ -156,4 +163,4 @@ html_content = f"""
 
 with open("index.html", "w", encoding="utf-8") as f:
     f.write(html_content)
-print("Dashboard generado excluyendo el mes en curso del entrenamiento.")
+print("Hecho. Abril corregido.")
