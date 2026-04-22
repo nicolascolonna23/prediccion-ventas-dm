@@ -4,6 +4,7 @@ from datetime import date
 import base64, os, requests
 from io import BytesIO
 
+# 1. DESCARGA Y LIMPIEZA (Igual a la anterior para asegurar consistencia)
 URLS = [
     "http://bi.sistemaexpreso.com.ar/reporte_cuenta_corriente_2021.xlsx",
     "http://bi.sistemaexpreso.com.ar/reporte_cuenta_corriente_2022.xlsx",
@@ -23,18 +24,14 @@ def descargar(url):
         if 'Neto' not in df.columns and 'Valor Neto' in df.columns:
             df = df.rename(columns={'Valor Neto': 'Neto'})
         return df
-    except Exception as e:
-        print(f"Error descargando {url}: {e}")
-        return None
+    except: return None
 
-print("Descargando datos...")
+print("Descargando...")
 dfs = [descargar(u) for u in URLS]
-dfs = [d for d in dfs if d is not None and len(d) > 0]
-df_completo = pd.concat(dfs, ignore_index=True)
+df_completo = pd.concat([d for d in dfs if d is not None], ignore_index=True)
 
 df_completo = df_completo.rename(columns={"Fecha de Emisión": "Fecha"})
 for col in ["Neto", "Total"]:
-    if col not in df_completo.columns: df_completo[col] = 0
     df_completo[col] = pd.to_numeric(df_completo[col], errors='coerce').fillna(0)
 
 df_completo.loc[(df_completo["Neto"] == 0) & (df_completo["Total"] > 0), "Neto"] = df_completo["Total"] / 1.21
@@ -46,130 +43,105 @@ df_completo["Mes"]  = df_completo["Fecha"].dt.month.astype(int)
 mensual_full = df_completo.groupby(["Anio", "Mes"])["Neto"].sum().reset_index()
 mensual_full = mensual_full.sort_values(["Anio", "Mes"]).reset_index(drop=True)
 
+# 2. MODELO (Estacional con Dummies)
 hoy = date.today()
 m_entrenamiento = mensual_full[~((mensual_full["Anio"] == hoy.year) & (mensual_full["Mes"] == hoy.month))].copy()
-
 for m in range(1, 12):
     m_entrenamiento[f"Mes_{m}"] = (m_entrenamiento["Mes"] == m).astype(int)
-
 m_entrenamiento["Lag1"] = m_entrenamiento["Neto"].shift(1)
 m_entrenamiento["Lag2"] = m_entrenamiento["Neto"].shift(2)
 m_entrenamiento["Lag3"] = m_entrenamiento["Neto"].shift(3)
 m_train = m_entrenamiento.dropna().copy()
-
-columnas_estacionales = [f"Mes_{m}" for m in range(1, 12)]
-columnas_x = ["Anio", "Lag1", "Lag2", "Lag3"] + columnas_estacionales
-
-X = m_train[columnas_x].values
+X = m_train[["Anio", "Lag1", "Lag2", "Lag3"] + [f"Mes_{m}" for m in range(1, 12)]].values
 y = m_train["Neto"].values
 X_mean, X_std = X.mean(axis=0), X.std(axis=0)
 X_std[X_std == 0] = 1
-Xn = (X - X_mean) / X_std
-y_mean, y_std = y.mean(), y.std()
+Xn, y_mean, y_std = (X - X_mean) / X_std, y.mean(), y.std()
 yn = (y - y_mean) / y_std
 A = np.c_[np.ones(len(Xn)), Xn]
 coef, _, _, _ = np.linalg.lstsq(A, yn, rcond=None)
 
-def predecir_estacional(anio, mes, l1, l2, l3):
+def pred(anio, mes, l1, l2, l3):
     dummies = [1 if mes == m else 0 for m in range(1, 12)]
-    x = np.array([anio, l1, l2, l3] + dummies)
-    xn = (x - X_mean) / X_std
+    xn = (np.array([anio, l1, l2, l3] + dummies) - X_mean) / X_std
     return (coef[0] + np.dot(coef[1:], xn)) * y_std + y_mean
 
-# --- PREDICCIONES ---
-ultimo_cerrado = m_entrenamiento.iloc[-1]
-lags = [float(ultimo_cerrado["Neto"]), float(m_entrenamiento.iloc[-2]["Neto"]), float(m_entrenamiento.iloc[-3]["Neto"])]
-predicciones_raw = []
-m_act, a_act = int(ultimo_cerrado["Mes"]), int(ultimo_cerrado["Anio"])
-for i in range(12 - m_act if a_act == hoy.year else 12):
-    m_act += 1
-    if m_act > 12: m_act = 1; a_act += 1
-    p = predecir_estacional(a_act, m_act, lags[0], lags[1], lags[2])
-    predicciones_raw.append({"Anio": int(a_act), "Mes": int(m_act), "Neto": p})
-    lags = [p, lags[0], lags[1]]
+# 3. GENERAR DATA PARA EL GRÁFICO
+nombres = {1:"Ene",2:"Feb",3:"Mar",4:"Abr",5:"May",6:"Jun",7:"Jul",8:"Ago",9:"Sep",10:"Oct",11:"Nov",12:"Dic"}
+historico = []
+for i, r in mensual_full.iterrows():
+    l1, l2, l3 = (mensual_full.loc[i-1,"Neto"], mensual_full.loc[i-2,"Neto"], mensual_full.loc[i-3,"Neto"]) if i > 2 else (0,0,0)
+    p_val = round(pred(r['Anio'], r['Mes'], l1, l2, l3)/1e6, 2) if i > 2 else 0
+    historico.append({"lab": f"{nombres[int(r['Mes'])]} {int(r['Anio'])}", "a": int(r['Anio']), "m": int(r['Mes']), "n": round(r['Neto']/1e6, 2), "p": p_val})
 
-# --- DATA PARA JS ---
-nombres_meses = {1:"Ene",2:"Feb",3:"Mar",4:"Abr",5:"May",6:"Jun",7:"Jul",8:"Ago",9:"Sep",10:"Oct",11:"Nov",12:"Dic"}
-data_list = []
-for idx, r in mensual_full.iterrows():
-    l1 = mensual_full.loc[idx-1, "Neto"] if idx > 0 else None
-    l2 = mensual_full.loc[idx-2, "Neto"] if idx > 1 else None
-    l3 = mensual_full.loc[idx-3, "Neto"] if idx > 2 else None
-    p_val = round(predecir_estacional(r['Anio'], r['Mes'], l1, l2, l3)/1e6, 2) if l3 is not None else None
-    data_list.append({"label": f"{nombres_meses[int(r['Mes'])]} {int(r['Anio'])}", "anio": int(r['Anio']), "mes": int(r['Mes']), "neto": round(r['Neto']/1e6, 2), "pred": p_val})
+# Predicciones tarjetas
+u = mensual_full.iloc[-1]
+curr_l = [float(u["Neto"]), float(mensual_full.iloc[-2]["Neto"]), float(mensual_full.iloc[-3]["Neto"])]
+m_a, a_a = int(u["Mes"]), int(u["Anio"])
+futuro = []
+for i in range(3):
+    m_a += 1
+    if m_a > 12: m_a=1; a_a+=1
+    p_f = pred(a_a, m_a, curr_l[0], curr_l[1], curr_l[2])
+    futuro.append({"lab": f"{nombres[m_a]} {a_a}", "a": a_a, "m": m_a, "n": None, "p": round(p_f/1e6, 2)})
+    curr_l = [p_f, curr_l[0], curr_l[1]]
 
-for p in predicciones_raw:
-    data_list.append({"label": f"{nombres_meses[p['Mes']]} {p['Anio']}", "anio": p['Anio'], "mes": p['Mes'], "neto": None, "pred": round(p['Neto']/1e6, 2)})
-
-years_list = sorted(list(mensual_full['Anio'].unique()))
-cards_html = "".join([f'<div class="card"><div class="card-label">{nombres_meses[p["Mes"]]} {p["Anio"]}</div><div class="card-value">$ {p["Neto"]/1e6:,.1f} M</div></div>' for p in predicciones_raw[:3]])
+# 4. HTML
+years_avail = sorted(mensual_full['Anio'].unique().tolist())
+cards_html = "".join([f'<div class="card"><div>{f["lab"]}</div><div style="font-size:20px;font-weight:bold;color:#1a4fa0">$ {f["p"]:.1f} M</div></div>' for f in futuro])
 
 html_content = f"""
-<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-    body{{font-family:sans-serif;background:#f4f7f6;padding:20px;color:#333}}
-    .container{{max-width:1100px;margin:auto}}
-    .header{{background:#fff;padding:20px;border-radius:12px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
-    .logo{{max-height:60px}}
-    .cards{{display:flex;gap:15px;margin-bottom:20px}}
-    .card{{flex:1;background:#fff;padding:15px;border-radius:12px;text-align:center;border-bottom:4px solid #1a4fa0;box-shadow:0 2px 4px rgba(0,0,0,0.05)}}
-    .card-label{{font-size:11px;color:#888;text-transform:uppercase}}
-    .card-value{{font-size:22px;font-weight:bold;color:#1a4fa0}}
-    .filters{{background:#fff;padding:20px;border-radius:12px;margin-bottom:20px;display:flex;gap:20px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
-    .filter-group{{flex:1}}
-    select{{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;height:120px}}
-    .chart-box{{background:#fff;padding:20px;border-radius:12px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
+    body{{font-family:sans-serif;background:#f4f7f6;padding:20px}}
+    .container{{max-width:1000px;margin:auto;background:white;padding:25px;border-radius:15px;box-shadow:0 4px 10px rgba(0,0,0,0.1)}}
+    .cards{{display:flex;gap:15px;margin-bottom:25px}}
+    .card{{flex:1;padding:15px;border-radius:10px;border:1px solid #eee;text-align:center;background:#fff}}
+    .filters{{display:flex;gap:20px;margin-bottom:20px;background:#f9f9f9;padding:15px;border-radius:10px}}
+    select{{flex:1;height:100px;border:1px solid #ccc;border-radius:5px}}
 </style></head><body>
 <div class="container">
-    <div class="header"><img src="logo_dm.png" alt="DM" class="logo"><div style="text-align:right"><h1>Dashboard DM</h1><p>Control de Visualización</p></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <img src="logo_dm.png" style="height:50px">
+        <h2>Dashboard Interactivo de Ventas</h2>
+    </div>
     <div class="cards">{cards_html}</div>
     <div class="filters">
-        <div class="filter-group"><label><b>Años (Ctrl+clic):</b></label><br>
-            <select id="yF" multiple onchange="uC()"></select>
-        </div>
-        <div class="filter-group"><label><b>Meses:</b></label><br>
-            <select id="mF" multiple onchange="uC()">
-                {"".join([f'<option value="{i}" selected>{n}</option>' for i, n in nombres_meses.items()])}
-            </select>
-        </div>
+        <div style="flex:1"><b>Años (Ctrl+clic):</b><br><select id="yF" multiple onchange="u()"></select></div>
+        <div style="flex:1"><b>Meses:</b><br><select id="mF" multiple onchange="u()"></select></div>
     </div>
-    <div class="chart-box"><canvas id="chart"></canvas></div>
+    <canvas id="chart"></canvas>
 </div>
 <script>
-    const d = {data_list};
-    const ys = {years_list};
-    let c;
+    const data = {historico + futuro};
+    const ys = {years_avail};
+    const ms = {list(nombres.items())};
+    let myChart;
 
-    // Poblar años dinámicamente para evitar errores de Python
     const yS = document.getElementById('yF');
-    ys.forEach(y => {{
-        let o = document.createElement('option');
-        o.value = y; o.text = y; o.selected = true;
-        yS.appendChild(o);
-    }});
+    ys.forEach(y => {{ let o = new Option(y, y); o.selected = true; yS.add(o); }});
+    const mS = document.getElementById('mF');
+    ms.forEach(([v, n]) => {{ let o = new Option(n, v); o.selected = true; mS.add(o); }});
 
-    function uC() {{
-        const sY = Array.from(document.getElementById('yF').selectedOptions).map(o=>parseInt(o.value));
-        const sM = Array.from(document.getElementById('mF').selectedOptions).map(o=>parseInt(o.value));
-        const f = d.filter(x => sY.includes(x.anio) && sM.includes(x.mes));
+    function u() {{
+        const sy = Array.from(yS.selectedOptions).map(o => parseInt(o.value));
+        const sm = Array.from(mS.selectedOptions).map(o => parseInt(o.value));
+        const f = data.filter(d => sy.includes(d.a) && sm.includes(d.m));
         
-        if(c) c.destroy();
-        c = new Chart(document.getElementById('chart'), {{
+        if(myChart) myChart.destroy();
+        myChart = new Chart(document.getElementById('chart'), {{
             type: 'bar',
             data: {{
-                labels: f.map(x=>x.label),
+                labels: f.map(d => d.lab),
                 datasets: [
-                    {{ label: 'Ventas Reales (M)', data: f.map(x=>x.neto), backgroundColor: '#1a4fa0', borderRadius: 4 }},
-                    {{ label: 'Proyección IA (M)', data: f.map(x=>x.pred), type: 'line', borderColor: '#f28e2b', tension: 0.3 }}
+                    {{ label: 'Real (M)', data: f.map(d => d.n), backgroundColor: '#1a4fa0' }},
+                    {{ label: 'IA (M)', data: f.map(d => d.p), type: 'line', borderColor: '#f28e2b' }}
                 ]
-            }},
-            options: {{ scales: {{ y: {{ beginAtZero: true, ticks: {{ callback: v => '$'+v+'M' }} }} }} }}
+            }}
         }});
     }}
-    uC();
+    u();
 </script></body></html>
 """
-
-with open("index.html", "w", encoding="utf-8") as f:
-    f.write(html_content)
+with open("index.html", "w", encoding="utf-8") as f: f.write(html_content)
