@@ -1,0 +1,31 @@
+name: Actualizar dashboard de ventas
+
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  generar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install pandas openpyxl numpy requests
+
+      - run: python generar_dashboard.py
+
+      - name: Publicar
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add index.html
+          git diff --staged --quiet && echo "Sin cambios" || (git commit -m "Dashboard $(date +'%Y-%m-%d')" && git push)
