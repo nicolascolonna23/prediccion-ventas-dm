@@ -1,29 +1,62 @@
 
-<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard Estacional</title>
+<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard Proyectado</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-    body{font-family:sans-serif;background:#f8f9fa;padding:20px}
-    .container{max-width:950px;margin:auto}
-    .header{background:#fff;padding:15px;border-radius:10px;margin-bottom:20px;border-left:5px solid #1a4fa0}
-    .cards{display:flex;gap:15px;margin-bottom:20px}
-    .card{flex:1;background:#fff;padding:15px;border-radius:10px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
-    .card-label{font-size:11px;color:#888;text-transform:uppercase}
-    .card-value{font-size:22px;font-weight:bold;color:#1a4fa0}
+    body{font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:#f4f7f6;padding:20px;color:#333}
+    .container{max-width:1000px;margin:auto}
+    .header{background:#fff;padding:25px;border-radius:12px;margin-bottom:20px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.05)}
+    .logo{max-width:180px;margin-bottom:15px}
+    .cards{display:flex;gap:15px;margin-bottom:25px}
+    .card{flex:1;background:#fff;padding:20px;border-radius:12px;text-align:center;border-bottom:4px solid #1a4fa0;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+    .card-label{font-size:12px;color:#777;text-transform:uppercase;letter-spacing:1px}
+    .card-value{font-size:24px;font-weight:bold;color:#1a4fa0;margin-top:5px}
+    .chart-container{background:#fff;padding:25px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05);margin-bottom:25px}
+    .info-section{background:#e9ecef;padding:25px;border-radius:12px;line-height:1.6}
+    .info-section h3{color:#1a4fa0;margin-top:0}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 </style></head><body>
 <div class="container">
-    <div class="header"><h1>DM Vencemos Distancias</h1><p>Modelo Estacional (Vista 2025-2026)</p></div>
+    <div class="header">
+        <img src="logo_dm.png" alt="DM Logo" class="logo">
+        <h1>DM Vencemos Distancias</h1>
+        <p>Dashboard de Proyección Comercial 2024 - 2026</p>
+    </div>
+    
     <div class="cards"><div class="card"><div class="card-label">Abr 2026</div><div class="card-value">$ 1,037.4 M</div></div><div class="card"><div class="card-label">May 2026</div><div class="card-value">$ 1,235.4 M</div></div><div class="card"><div class="card-label">Jun 2026</div><div class="card-value">$ 1,136.5 M</div></div></div>
-    <div style="background:#fff;padding:20px;border-radius:10px;"><canvas id="chart"></canvas></div>
+    
+    <div class="chart-container"><canvas id="chart"></canvas></div>
+
+    <div class="info-section">
+        <h3>¿Cómo funciona este modelo?</h3>
+        <div class="info-grid">
+            <div>
+                <p><b>1. Inteligencia Estacional:</b> El modelo no solo mira los números, sino que reconoce patrones. Sabe que ciertos meses del año suelen tener picos o caídas de ventas basándose en los últimos 5 años de historia de la empresa.</p>
+                <p><b>2. Análisis de Inercia (Lags):</b> Para predecir el futuro, la IA analiza lo que pasó en los últimos 3 meses cerrados. Esto le permite detectar si el negocio está en una etapa de crecimiento o estabilidad inmediata.</p>
+            </div>
+            <div>
+                <p><b>3. Filtro de "Mes Abierto":</b> Para evitar errores, el modelo ignora el mes actual mientras está transcurriendo. Solo usa datos de meses completados para asegurar que la tendencia sea real y no una caída ficticia por falta de días facturados.</p>
+                <p><b>4. Proyección Matemática:</b> Utiliza una regresión lineal estandarizada, un método que busca la relación más lógica entre el tiempo, la temporada y el volumen de ventas para darte el escenario más probable.</p>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
     new Chart(document.getElementById('chart'), {
         type: 'bar',
         data: {
-            labels: ['Ene 2025', 'Feb 2025', 'Mar 2025', 'Abr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Ago 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dic 2025', 'Ene 2026', 'Feb 2026', 'Mar 2026', 'Abr 2026', 'May 2026', 'Jun 2026'],
+            labels: ['Ene 2024', 'Feb 2024', 'Mar 2024', 'Abr 2024', 'May 2024', 'Jun 2024', 'Jul 2024', 'Ago 2024', 'Sep 2024', 'Oct 2024', 'Nov 2024', 'Dic 2024', 'Ene 2025', 'Feb 2025', 'Mar 2025', 'Abr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Ago 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dic 2025', 'Ene 2026', 'Feb 2026', 'Mar 2026', 'Abr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Ago 2026', 'Sep 2026', 'Oct 2026', 'Nov 2026', 'Dic 2026'],
             datasets: [
-                { label: 'Ventas Reales (M)', data: [894.5,875.0,1037.8,1042.8,1192.3,1206.0,1164.5,1153.7,1340.9,958.9,1078.0,936.8,970.3,832.4,1188.5,675.4,null,null,null], backgroundColor: '#1a4fa0', borderRadius: 4 },
-                { label: 'Predicción Estacional (M)', data: [null,null,null,1000.5,1122.2,1156.4,1254.7,1219.3,1194.4,1236.5,1170.2,952.6,1000.5,896.7,1008.9,1037.4,1037.4,1235.4,1136.5], type: 'line', borderColor: '#f28e2b', tension: 0.3, pointRadius: 4 }
+                { label: 'Ventas Reales (M)', data: [297.4,387.7,445.3,527.6,565.7,610.0,702.1,823.3,837.0,964.8,955.0,1091.7,894.5,875.0,1037.8,1042.8,1192.3,1206.0,1164.5,1153.7,1340.9,958.9,1078.0,936.8,970.3,832.4,1188.5,675.4,null,null,null,null,null,null,null,null,null], backgroundColor: '#1a4fa0', borderRadius: 4 },
+                { label: 'Proyección IA (M)', data: [null,null,null,481.4,544.8,596.8,614.5,708.0,844.0,841.1,913.4,1022.5,1003.0,993.9,938.8,1000.5,1122.2,1156.4,1254.7,1219.3,1194.4,1236.5,1170.2,952.6,1000.5,896.7,1008.9,1037.4,1037.4,1235.4,1136.5,1245.9,1206.4,1300.4,1227.6,1283.2,1269.0], type: 'line', borderColor: '#f28e2b', borderDash: [5, 5], tension: 0.3, pointRadius: 4 }
             ]
+        },
+        options: {
+            responsive: true,
+            plugins: { 
+                legend: { position: 'top' },
+                tooltip: { callbacks: { label: ctx => '$ ' + ctx.parsed.y + ' M' } } 
+            },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v + 'M' } } }
         }
     });
 </script></body></html>
