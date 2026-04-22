@@ -4,14 +4,14 @@
 <style>
     body{font-family:sans-serif;background:#f8f9fa;padding:20px}
     .container{max-width:900px;margin:auto}
-    .header{background:#fff;padding:20px;border-radius:10px;margin-bottom:20px;border-left:5px solid #1a4fa0}
+    .header{background:#fff;padding:15px;border-radius:10px;margin-bottom:20px;border-left:5px solid #1a4fa0}
     .cards{display:flex;gap:15px;margin-bottom:20px}
     .card{flex:1;background:#fff;padding:15px;border-radius:10px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
     .card-label{font-size:11px;color:#888;text-transform:uppercase}
-    .card-value{font-size:22px;font-weight:bold;color:#1a4fa0}
+    .card-value{font-size:20px;font-weight:bold;color:#1a4fa0}
 </style></head><body>
 <div class="container">
-    <div class="header"><h1>DM Vencemos Distancias</h1><p>Modelo entrenado únicamente con meses cerrados (Historia completa 2021-2026)</p></div>
+    <div class="header"><h1>DM Vencemos Distancias</h1><p>Proyecciones Nominales | Mes actual excluido del entrenamiento.</p></div>
     <div class="cards"><div class="card"><div class="card-label">Abr 2026</div><div class="card-value">$ 1,032.4 M</div></div><div class="card"><div class="card-label">May 2026</div><div class="card-value">$ 1,190.5 M</div></div><div class="card"><div class="card-label">Jun 2026</div><div class="card-value">$ 1,115.3 M</div></div></div>
     <div style="background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 5px rgba(0,0,0,0.05);"><canvas id="chart"></canvas></div>
 </div>
@@ -19,9 +19,9 @@
     new Chart(document.getElementById('chart'), {
         type: 'bar',
         data: {
-            labels: ['Ene 2025', 'Feb 2025', 'Mar 2025', 'Abr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Ago 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dic 2025', 'Ene 2026', 'Feb 2026', 'Mar 2026', 'Abr 2026', 'Abr 2026', 'May 2026', 'Jun 2026'],
+            labels: ['Ene 2025', 'Feb 2025', 'Mar 2025', 'Abr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Ago 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dic 2025', 'Ene 2026', 'Feb 2026', 'Mar 2026', 'Abr 2026', 'May 2026', 'Jun 2026'],
             datasets: [
-                { label: 'Facturado (M)', data: [894.5,875.0,1037.8,1042.8,1192.3,1206.0,1164.5,1153.7,1340.9,958.9,1078.0,936.8,970.3,832.4,1188.5,675.4,null,null,null], backgroundColor: '#1a4fa0', borderRadius: 5 },
+                { label: 'Facturado (M)', data: [894.5,875.0,1037.8,1042.8,1192.3,1206.0,1164.5,1153.7,1340.9,958.9,1078.0,936.8,970.3,832.4,1188.5,675.4,null,null,null], backgroundColor: '#1a4fa0', borderRadius: 4 },
                 { label: 'Proyección Modelo (M)', data: [null,null,null,986.9,1094.5,1152.0,1251.6,1207.1,1172.2,1281.1,1179.5,974.2,1043.0,951.3,919.9,1032.4,1032.4,1190.5,1115.3], type: 'line', borderColor: '#f28e2b', tension: 0.3, pointRadius: 4 }
             ]
         },
