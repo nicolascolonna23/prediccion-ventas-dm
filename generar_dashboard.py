@@ -47,6 +47,8 @@ if conteo_actual < conteo_ant * 0.85:
     df = df[~((df["Anio"] == hoy.year) & (df["Mes"] == hoy.month))]
 
 print("Descargando IPC del INDEC...")
+ipc_ok = False
+ipc_df = None
 try:
     url_indec = "https://apis.datos.gob.ar/series/api/series/?ids=148.3_INIVELNAL_DICI_M_26&limit=200&format=json"
     resp = requests.get(url_indec, timeout=30).json()
@@ -61,7 +63,6 @@ try:
     print("IPC OK")
 except Exception as e:
     print(f"Error IPC: {e}")
-    ipc_ok = False
 
 mensual = df.groupby(["Anio", "Mes"])["Neto"].sum().reset_index()
 mensual = mensual.sort_values(["Anio", "Mes"]).reset_index(drop=True)
@@ -140,7 +141,7 @@ top_max = top10["Neto Total"].max()
 if os.path.exists("logo_dm.png"):
     with open("logo_dm.png", "rb") as f:
         logo_b64 = base64.b64encode(f.read()).decode()
-    logo_tag = f'<img src="data:image/png;base64,{logo_b64}" style="height:48px;">'
+    logo_tag = '<img src="data:image/png;base64,' + logo_b64 + '" style="height:48px;">'
 else:
     logo_tag = '<span style="font-size:18px;font-weight:bold;color:#1a4fa0;">DM Vencemos Distancias</span>'
 
@@ -149,88 +150,112 @@ netos_hist = [round(r.Neto_real / 1e6, 1) for _, r in mensual.iterrows()]
 preds_hist = [round(predecir_real(r.Anio, r.Mes, r.Lag1, r.Lag2, r.Lag3) / 1e6, 1) for _, r in mensual.iterrows()]
 etiq_fut   = [f"{nombres[m]} {a}" for a, m, _, _ in predicciones]
 preds_fut  = [round(pr / 1e6, 1) for _, _, pr, _ in predicciones]
-noms_fut   = [round(pn / 1e6, 1) for _, _, _, pn in predicciones]
 
-etiquetas = etiq_hist + etiq_fut
-netos_js  = "[" + ",".join(str(v) for v in netos_hist) + "," + ",".join("null" for _ in predicciones) + "]"
-preds_js  = "[" + ",".join(str(v) for v in preds_hist) + "," + ",".join(str(v) for v in preds_fut) + "]"
-n_hist    = len(etiq_hist)
+etiquetas  = etiq_hist + etiq_fut
+netos_js   = "[" + ",".join(str(v) for v in netos_hist) + "," + ",".join("null" for _ in predicciones) + "]"
+preds_js   = "[" + ",".join(str(v) for v in preds_hist) + "," + ",".join(str(v) for v in preds_fut) + "]"
+n_hist     = len(etiq_hist)
+fecha_txt  = hoy.strftime("%d/%m/%Y")
 
-cards_html = "".join(f'''
-    <div class="card">
-      <div class="card-label">{nombres[m]} {a}</div>
-      <div class="card-value">$ {pn/1e6:,.0f} M</div>
-      <div class="card-sub">$ {pr/1e6:,.0f} M pesos dic-2024</div>
-    </div>''' for a, m, pr, pn in predicciones)
+cards_html = ""
+for a, m, pr, pn in predicciones:
+    cards_html += (
+        '<div class="card">'
+        '<div class="card-label">' + nombres[m] + " " + str(a) + "</div>"
+        '<div class="card-value">$ ' + f"{pn/1e6:,.0f}" + " M</div>"
+        '<div class="card-sub">$ ' + f"{pr/1e6:,.0f}" + " M pesos dic-2024</div>"
+        "</div>"
+    )
 
-top10_rows = "".join(f'''
-    <tr>
-      <td style="padding:10px 14px;font-weight:500;color:#1a4fa0;">{int(r["Cliente"])}</td>
-      <td style="padding:10px 14px;">
-        <div style="background:#e8eef7;border-radius:4px;height:10px;width:100%;">
-          <div style="background:#1a4fa0;border-radius:4px;height:10px;width:{round(r["Neto Total"]/top_max*100)}%;"></div>
-        </div>
-      </td>
-      <td style="padding:10px 14px;text-align:right;font-weight:500;">$ {r["Neto Total"]/1e6:,.1f} M</td>
-    </tr>''' for _, r in top10.iterrows())
+top10_rows = ""
+for _, r in top10.iterrows():
+    pct = round(r["Neto Total"] / top_max * 100)
+    top10_rows += (
+        "<tr>"
+        '<td style="padding:10px 14px;font-weight:500;color:#1a4fa0;">' + str(int(r["Cliente"])) + "</td>"
+        '<td style="padding:10px 14px;">'
+        '<div style="background:#e8eef7;border-radius:4px;height:10px;width:100%;">'
+        '<div style="background:#1a4fa0;border-radius:4px;height:10px;width:' + str(pct) + '%;"></div>'
+        "</div></td>"
+        '<td style="padding:10px 14px;text-align:right;font-weight:500;">$ ' + f"{r['Neto Total']/1e6:,.1f}" + " M</td>"
+        "</tr>"
+    )
 
-html = f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Prediccion de Ventas - DM</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-  * {{ box-sizing:border-box; margin:0; padding:0; }}
-  body {{ font-family:Arial,sans-serif; background:#f0f2f5; padding:24px; }}
-  .container {{ max-width:980px; margin:auto; }}
-  .header {{ display:flex; align-items:center; justify-content:space-between; background:white; border-radius:12px; padding:20px 28px; margin-bottom:20px; border-bottom:3px solid #1a4fa0; }}
-  .header-right {{ text-align:right; }}
-  .header-right h1 {{ font-size:18px; color:#1a4fa0; font-weight:bold; }}
-  .header-right p {{ font-size:12px; color:#888; margin-top:2px; }}
-  .cards {{ display:flex; gap:16px; margin-bottom:20px; }}
-  .card {{ flex:1; background:white; border-radius:12px; padding:20px; text-align:center; border-top:4px solid #f28e2b; }}
-  .card-label {{ font-size:12px; color:#888; margin-bottom:6px; text-transform:uppercase; }}
-  .card-value {{ font-size:26px; font-weight:bold; color:#1a4fa0; }}
-  .card-sub {{ font-size:11px; color:#aaa; margin-top:4px; }}
-  .box {{ background:white; border-radius:12px; padding:24px; margin-bottom:20px; }}
-  .box-title {{ font-size:13px; color:#888; margin-bottom:16px; }}
-  .note {{ font-size:11px; color:#aaa; margin-top:8px; }}
-  table {{ width:100%; border-collapse:collapse; }}
-  thead th {{ font-size:12px; color:#888; text-transform:uppercase; padding:8px 14px; text-align:left; border-bottom:1px solid #eee; }}
-  tbody tr:hover {{ background:#f8f9fb; }}
-  .footer {{ text-align:center; font-size:11px; color:#bbb; margin-top:16px; }}
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="header">
-    {logo_tag}
-    <div class="header-right">
-      <h1>Prediccion de Ventas</h1>
-      <p>Actualizado: {hoy.strftime('%d/%m/%Y')} — Historico desde 2021 · Pesos constantes dic-2024</p>
-    </div>
-  </div>
-  <div class="cards">{cards_html}</div>
-  <div class="box">
-    <div class="box-title">Ventas netas mensuales vs prediccion (pesos constantes dic-2024, en millones)</div>
-    <canvas id="chart" style="max-height:380px;"></canvas>
-    <div class="note">Valores deflactados por IPC INDEC. Linea naranja: ajuste del modelo sobre historico y proyeccion futura.</div>
-  </div>
-  <div class="box">
-    <div class="box-title">Top 10 clientes por ventas acumuladas (nominales)</div>
-    <table>
-      <thead><tr><th>ID Cliente</th><th>Participacion</th><th style="text-align:right;">Total facturado</th></tr></thead>
-      <tbody>{top10_rows}</tbody>
-    </table>
-  </div>
-  <div class="footer">Generado automaticamente todos los dias · DM Vencemos Distancias</div>
-</div>
-<script>
-const labels  = {str(etiquetas)};
-const netos   = {netos_js};
-const predics = {preds_js};
-const nHist   = {n_hist};
-new Chart(document.getElementById('chart'), {{
-  type: 'bar',
-  da
+labels_js = str(etiquetas)
+
+html_parts = []
+html_parts.append("<!DOCTYPE html><html><head><meta charset='utf-8'>")
+html_parts.append("<title>Prediccion de Ventas - DM</title>")
+html_parts.append('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>')
+html_parts.append("""<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f0f2f5;padding:24px}
+.container{max-width:980px;margin:auto}
+.header{display:flex;align-items:center;justify-content:space-between;background:white;border-radius:12px;padding:20px 28px;margin-bottom:20px;border-bottom:3px solid #1a4fa0}
+.header-right{text-align:right}
+.header-right h1{font-size:18px;color:#1a4fa0;font-weight:bold}
+.header-right p{font-size:12px;color:#888;margin-top:2px}
+.cards{display:flex;gap:16px;margin-bottom:20px}
+.card{flex:1;background:white;border-radius:12px;padding:20px;text-align:center;border-top:4px solid #f28e2b}
+.card-label{font-size:12px;color:#888;margin-bottom:6px;text-transform:uppercase}
+.card-value{font-size:26px;font-weight:bold;color:#1a4fa0}
+.card-sub{font-size:11px;color:#aaa;margin-top:4px}
+.box{background:white;border-radius:12px;padding:24px;margin-bottom:20px}
+.box-title{font-size:13px;color:#888;margin-bottom:16px}
+.note{font-size:11px;color:#aaa;margin-top:8px}
+table{width:100%;border-collapse:collapse}
+thead th{font-size:12px;color:#888;text-transform:uppercase;padding:8px 14px;text-align:left;border-bottom:1px solid #eee}
+tbody tr:hover{background:#f8f9fb}
+.footer{text-align:center;font-size:11px;color:#bbb;margin-top:16px}
+</style></head><body><div class="container">""")
+
+html_parts.append('<div class="header">' + logo_tag)
+html_parts.append('<div class="header-right"><h1>Prediccion de Ventas</h1>')
+html_parts.append("<p>Actualizado: " + fecha_txt + " — Historico desde 2021 · Pesos constantes dic-2024</p>")
+html_parts.append("</div></div>")
+html_parts.append('<div class="cards">' + cards_html + "</div>")
+html_parts.append('<div class="box"><div class="box-title">Ventas netas mensuales vs prediccion (pesos constantes dic-2024, en millones)</div>')
+html_parts.append('<canvas id="chart" style="max-height:380px;"></canvas>')
+html_parts.append('<div class="note">Valores deflactados por IPC INDEC. Linea naranja: ajuste del modelo y proyeccion futura.</div></div>')
+html_parts.append('<div class="box"><div class="box-title">Top 10 clientes por ventas acumuladas (nominales)</div>')
+html_parts.append("<table><thead><tr><th>ID Cliente</th><th>Participacion</th>")
+html_parts.append('<th style="text-align:right;">Total facturado</th></tr></thead>')
+html_parts.append("<tbody>" + top10_rows + "</tbody></table></div>")
+html_parts.append('<div class="footer">Generado automaticamente todos los dias · DM Vencemos Distancias</div>')
+html_parts.append("</div>")
+
+html_parts.append("<script>")
+html_parts.append("const labels=" + labels_js + ";")
+html_parts.append("const netos=" + netos_js + ";")
+html_parts.append("const predics=" + preds_js + ";")
+html_parts.append("const nHist=" + str(n_hist) + ";")
+html_parts.append("""
+new Chart(document.getElementById('chart'),{
+  type:'bar',
+  data:{
+    labels,
+    datasets:[
+      {label:'Ventas reales deflactadas (M)',data:netos,backgroundColor:'#1a4fa0',borderRadius:4,order:2},
+      {label:'Prediccion (M)',data:predics,type:'line',borderColor:'#f28e2b',
+       backgroundColor:labels.map((_,i)=>i>=nHist?'#f28e2b':'transparent'),
+       pointRadius:labels.map((_,i)=>i>=nHist?8:3),borderWidth:2.5,tension:0.3,order:1}
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{position:'top'},
+      tooltip:{callbacks:{label:ctx=>ctx.parsed.y!==null?'$ '+ctx.parsed.y.toLocaleString('es-AR',{minimumFractionDigits:1})+' M':''}}
+    },
+    scales:{
+      y:{ticks:{callback:val=>'$ '+val.toLocaleString('es-AR')+' M'},grid:{color:'#f0f0f0'}},
+      x:{grid:{display:false},ticks:{maxRotation:45}}
+    }
+  }
+});
+""")
+html_parts.append("</script></body></html>")
+
+with open("index.html", "w", encoding="utf-8") as f:
+    f.write("".join(html_parts))
+print("index.html generado.")
