@@ -1,19 +1,19 @@
 
-<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard</title>
+<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard Estacional</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
     body{font-family:sans-serif;background:#f8f9fa;padding:20px}
-    .container{max-width:900px;margin:auto}
+    .container{max-width:950px;margin:auto}
     .header{background:#fff;padding:15px;border-radius:10px;margin-bottom:20px;border-left:5px solid #1a4fa0}
     .cards{display:flex;gap:15px;margin-bottom:20px}
     .card{flex:1;background:#fff;padding:15px;border-radius:10px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
     .card-label{font-size:11px;color:#888;text-transform:uppercase}
-    .card-value{font-size:20px;font-weight:bold;color:#1a4fa0}
+    .card-value{font-size:22px;font-weight:bold;color:#1a4fa0}
 </style></head><body>
 <div class="container">
-    <div class="header"><h1>DM Vencemos Distancias</h1><p>Proyecciones Nominales | Mes actual excluido del entrenamiento.</p></div>
-    <div class="cards"><div class="card"><div class="card-label">Abr 2026</div><div class="card-value">$ 1,032.4 M</div></div><div class="card"><div class="card-label">May 2026</div><div class="card-value">$ 1,190.5 M</div></div><div class="card"><div class="card-label">Jun 2026</div><div class="card-value">$ 1,115.3 M</div></div></div>
-    <div style="background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 5px rgba(0,0,0,0.05);"><canvas id="chart"></canvas></div>
+    <div class="header"><h1>DM Vencemos Distancias</h1><p>Modelo Estacional (Vista 2025-2026)</p></div>
+    <div class="cards"><div class="card"><div class="card-label">Abr 2026</div><div class="card-value">$ 1,037.4 M</div></div><div class="card"><div class="card-label">May 2026</div><div class="card-value">$ 1,235.4 M</div></div><div class="card"><div class="card-label">Jun 2026</div><div class="card-value">$ 1,136.5 M</div></div></div>
+    <div style="background:#fff;padding:20px;border-radius:10px;"><canvas id="chart"></canvas></div>
 </div>
 <script>
     new Chart(document.getElementById('chart'), {
@@ -21,13 +21,9 @@
         data: {
             labels: ['Ene 2025', 'Feb 2025', 'Mar 2025', 'Abr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Ago 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dic 2025', 'Ene 2026', 'Feb 2026', 'Mar 2026', 'Abr 2026', 'May 2026', 'Jun 2026'],
             datasets: [
-                { label: 'Facturado (M)', data: [894.5,875.0,1037.8,1042.8,1192.3,1206.0,1164.5,1153.7,1340.9,958.9,1078.0,936.8,970.3,832.4,1188.5,675.4,null,null,null], backgroundColor: '#1a4fa0', borderRadius: 4 },
-                { label: 'Proyección Modelo (M)', data: [null,null,null,986.9,1094.5,1152.0,1251.6,1207.1,1172.2,1281.1,1179.5,974.2,1043.0,951.3,919.9,1032.4,1032.4,1190.5,1115.3], type: 'line', borderColor: '#f28e2b', tension: 0.3, pointRadius: 4 }
+                { label: 'Ventas Reales (M)', data: [894.5,875.0,1037.8,1042.8,1192.3,1206.0,1164.5,1153.7,1340.9,958.9,1078.0,936.8,970.3,832.4,1188.5,675.4,null,null,null], backgroundColor: '#1a4fa0', borderRadius: 4 },
+                { label: 'Predicción Estacional (M)', data: [null,null,null,1000.5,1122.2,1156.4,1254.7,1219.3,1194.4,1236.5,1170.2,952.6,1000.5,896.7,1008.9,1037.4,1037.4,1235.4,1136.5], type: 'line', borderColor: '#f28e2b', tension: 0.3, pointRadius: 4 }
             ]
-        },
-        options: {
-            plugins: { tooltip: { callbacks: { label: ctx => '$ ' + ctx.parsed.y + ' M' } } },
-            scales: { y: { ticks: { callback: v => '$' + v + 'M' } } }
         }
     });
 </script></body></html>
