@@ -1,62 +1,77 @@
 
-<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard Proyectado</title>
+<!DOCTYPE html><html><head><meta charset='utf-8'><title>DM Dashboard Interactivo</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-    body{font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;background:#f4f7f6;padding:20px;color:#333}
-    .container{max-width:1000px;margin:auto}
-    .header{background:#fff;padding:25px;border-radius:12px;margin-bottom:20px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.05)}
-    .logo{max-width:180px;margin-bottom:15px}
-    .cards{display:flex;gap:15px;margin-bottom:25px}
-    .card{flex:1;background:#fff;padding:20px;border-radius:12px;text-align:center;border-bottom:4px solid #1a4fa0;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
-    .card-label{font-size:12px;color:#777;text-transform:uppercase;letter-spacing:1px}
-    .card-value{font-size:24px;font-weight:bold;color:#1a4fa0;margin-top:5px}
-    .chart-container{background:#fff;padding:25px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.05);margin-bottom:25px}
-    .info-section{background:#e9ecef;padding:25px;border-radius:12px;line-height:1.6}
-    .info-section h3{color:#1a4fa0;margin-top:0}
-    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    body{font-family:'Segoe UI',sans-serif;background:#f4f7f6;padding:20px;color:#333}
+    .container{max-width:1100px;margin:auto}
+    .header{background:#fff;padding:20px;border-radius:12px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 5px rgba(0,0,0,0.05)}
+    .logo{max-height:60px}
+    .filters{background:#fff;padding:20px;border-radius:12px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}
+    select{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;outline:none;height:100px}
+    .chart-box{background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}
+    .info{margin-top:20px;font-size:13px;color:#666;line-height:1.6}
 </style></head><body>
 <div class="container">
     <div class="header">
-        <img src="logo_dm.png" alt="DM Logo" class="logo">
-        <h1>DM Vencemos Distancias</h1>
-        <p>Dashboard de Proyección Comercial 2024 - 2026</p>
+        <img src="logo_dm.png" alt="DM" class="logo">
+        <div style="text-align:right"><h1>Dashboard Interactivo</h1><p>Control total de visualización</p></div>
     </div>
-    
-    <div class="cards"><div class="card"><div class="card-label">Abr 2026</div><div class="card-value">$ 1,037.4 M</div></div><div class="card"><div class="card-label">May 2026</div><div class="card-value">$ 1,235.4 M</div></div><div class="card"><div class="card-label">Jun 2026</div><div class="card-value">$ 1,136.5 M</div></div></div>
-    
-    <div class="chart-container"><canvas id="chart"></canvas></div>
 
-    <div class="info-section">
-        <h3>¿Cómo funciona este modelo?</h3>
-        <div class="info-grid">
-            <div>
-                <p><b>1. Inteligencia Estacional:</b> El modelo no solo mira los números, sino que reconoce patrones. Sabe que ciertos meses del año suelen tener picos o caídas de ventas basándose en los últimos 5 años de historia de la empresa.</p>
-                <p><b>2. Análisis de Inercia (Lags):</b> Para predecir el futuro, la IA analiza lo que pasó en los últimos 3 meses cerrados. Esto le permite detectar si el negocio está en una etapa de crecimiento o estabilidad inmediata.</p>
-            </div>
-            <div>
-                <p><b>3. Filtro de "Mes Abierto":</b> Para evitar errores, el modelo ignora el mes actual mientras está transcurriendo. Solo usa datos de meses completados para asegurar que la tendencia sea real y no una caída ficticia por falta de días facturados.</p>
-                <p><b>4. Proyección Matemática:</b> Utiliza una regresión lineal estandarizada, un método que busca la relación más lógica entre el tiempo, la temporada y el volumen de ventas para darte el escenario más probable.</p>
-            </div>
+    <div class="filters">
+        <div>
+            <label><b>Filtrar por Año(s):</b> (Ctrl/Cmd + clic para varios)</label>
+            <select id="yearFilter" multiple onchange="updateChart()">
+                <option value="2" selected>2</option><option value="22" selected>22</option><option value="201" selected>201</option><option value="202" selected>202</option><option value="221" selected>221</option><option value="224" selected>224</option><option value="242" selected>242</option><option value="2020" selected>2020</option><option value="2021" selected>2021</option><option value="2022" selected>2022</option><option value="2023" selected>2023</option><option value="2024" selected>2024</option><option value="2025" selected>2025</option><option value="2026" selected>2026</option>
+            </select>
+        </div>
+        <div>
+            <label><b>Filtrar por Mes(es):</b></label>
+            <select id="monthFilter" multiple onchange="updateChart()">
+                <option value="1" selected>Ene</option><option value="2" selected>Feb</option><option value="3" selected>Mar</option><option value="4" selected>Abr</option><option value="5" selected>May</option><option value="6" selected>Jun</option><option value="7" selected>Jul</option><option value="8" selected>Ago</option><option value="9" selected>Sep</option><option value="10" selected>Oct</option><option value="11" selected>Nov</option><option value="12" selected>Dic</option>
+            </select>
         </div>
     </div>
+    
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+
+    <div class="info">
+        <h3>Nota del Modelo</h3>
+        <p>Este gráfico es interactivo. Puedes seleccionar combinaciones de años y meses para comparar rendimientos estacionales. La línea naranja representa la predicción basada en la inercia de los últimos meses y el comportamiento histórico del mes seleccionado.</p>
+    </div>
 </div>
+
 <script>
-    new Chart(document.getElementById('chart'), {
-        type: 'bar',
-        data: {
-            labels: ['Ene 2024', 'Feb 2024', 'Mar 2024', 'Abr 2024', 'May 2024', 'Jun 2024', 'Jul 2024', 'Ago 2024', 'Sep 2024', 'Oct 2024', 'Nov 2024', 'Dic 2024', 'Ene 2025', 'Feb 2025', 'Mar 2025', 'Abr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Ago 2025', 'Sep 2025', 'Oct 2025', 'Nov 2025', 'Dic 2025', 'Ene 2026', 'Feb 2026', 'Mar 2026', 'Abr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Ago 2026', 'Sep 2026', 'Oct 2026', 'Nov 2026', 'Dic 2026'],
-            datasets: [
-                { label: 'Ventas Reales (M)', data: [297.4,387.7,445.3,527.6,565.7,610.0,702.1,823.3,837.0,964.8,955.0,1091.7,894.5,875.0,1037.8,1042.8,1192.3,1206.0,1164.5,1153.7,1340.9,958.9,1078.0,936.8,970.3,832.4,1188.5,675.4,null,null,null,null,null,null,null,null,null], backgroundColor: '#1a4fa0', borderRadius: 4 },
-                { label: 'Proyección IA (M)', data: [null,null,null,481.4,544.8,596.8,614.5,708.0,844.0,841.1,913.4,1022.5,1003.0,993.9,938.8,1000.5,1122.2,1156.4,1254.7,1219.3,1194.4,1236.5,1170.2,952.6,1000.5,896.7,1008.9,1037.4,1037.4,1235.4,1136.5,1245.9,1206.4,1300.4,1227.6,1283.2,1269.0], type: 'line', borderColor: '#f28e2b', borderDash: [5, 5], tension: 0.3, pointRadius: 4 }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: { 
-                legend: { position: 'top' },
-                tooltip: { callbacks: { label: ctx => '$ ' + ctx.parsed.y + ' M' } } 
+    const fullData = [{'label': 'Mar 2', 'anio': 2, 'mes': 3, 'neto': np.float64(0.0), 'pred': None, 'tipo': 'Real'}, {'label': 'Ene 22', 'anio': 22, 'mes': 1, 'neto': np.float64(0.0), 'pred': None, 'tipo': 'Real'}, {'label': 'Nov 201', 'anio': 201, 'mes': 11, 'neto': np.float64(0.0), 'pred': None, 'tipo': 'Real'}, {'label': 'Jun 202', 'anio': 202, 'mes': 6, 'neto': np.float64(0.25), 'pred': np.float64(16.1), 'tipo': 'Real'}, {'label': 'Nov 221', 'anio': 221, 'mes': 11, 'neto': np.float64(0.0), 'pred': np.float64(-10.31), 'tipo': 'Real'}, {'label': 'Sep 224', 'anio': 224, 'mes': 9, 'neto': np.float64(0.0), 'pred': np.float64(38.02), 'tipo': 'Real'}, {'label': 'Oct 224', 'anio': 224, 'mes': 10, 'neto': np.float64(1.05), 'pred': np.float64(-32.28), 'tipo': 'Real'}, {'label': 'Nov 242', 'anio': 242, 'mes': 11, 'neto': np.float64(1.12), 'pred': np.float64(-9.75), 'tipo': 'Real'}, {'label': 'Ene 2020', 'anio': 2020, 'mes': 1, 'neto': np.float64(0.01), 'pred': np.float64(-28.57), 'tipo': 'Real'}, {'label': 'Jul 2020', 'anio': 2020, 'mes': 7, 'neto': np.float64(0.0), 'pred': np.float64(12.39), 'tipo': 'Real'}, {'label': 'Oct 2020', 'anio': 2020, 'mes': 10, 'neto': np.float64(0.0), 'pred': np.float64(-24.75), 'tipo': 'Real'}, {'label': 'Nov 2020', 'anio': 2020, 'mes': 11, 'neto': np.float64(0.0), 'pred': np.float64(-2.68), 'tipo': 'Real'}, {'label': 'Dic 2020', 'anio': 2020, 'mes': 12, 'neto': np.float64(5.05), 'pred': np.float64(27.11), 'tipo': 'Real'}, {'label': 'Ene 2021', 'anio': 2021, 'mes': 1, 'neto': np.float64(21.22), 'pred': np.float64(-27.01), 'tipo': 'Real'}, {'label': 'Feb 2021', 'anio': 2021, 'mes': 2, 'neto': np.float64(26.02), 'pred': np.float64(-6.76), 'tipo': 'Real'}, {'label': 'Mar 2021', 'anio': 2021, 'mes': 3, 'neto': np.float64(26.48), 'pred': np.float64(136.17), 'tipo': 'Real'}, {'label': 'Abr 2021', 'anio': 2021, 'mes': 4, 'neto': np.float64(29.02), 'pred': np.float64(62.81), 'tipo': 'Real'}, {'label': 'May 2021', 'anio': 2021, 'mes': 5, 'neto': np.float64(26.75), 'pred': np.float64(63.68), 'tipo': 'Real'}, {'label': 'Jun 2021', 'anio': 2021, 'mes': 6, 'neto': np.float64(29.98), 'pred': np.float64(52.41), 'tipo': 'Real'}, {'label': 'Jul 2021', 'anio': 2021, 'mes': 7, 'neto': np.float64(27.76), 'pred': np.float64(39.95), 'tipo': 'Real'}, {'label': 'Ago 2021', 'anio': 2021, 'mes': 8, 'neto': np.float64(34.69), 'pred': np.float64(61.3), 'tipo': 'Real'}, {'label': 'Sep 2021', 'anio': 2021, 'mes': 9, 'neto': np.float64(37.98), 'pred': np.float64(76.83), 'tipo': 'Real'}, {'label': 'Oct 2021', 'anio': 2021, 'mes': 10, 'neto': np.float64(36.59), 'pred': np.float64(14.09), 'tipo': 'Real'}, {'label': 'Nov 2021', 'anio': 2021, 'mes': 11, 'neto': np.float64(38.77), 'pred': np.float64(35.46), 'tipo': 'Real'}, {'label': 'Dic 2021', 'anio': 2021, 'mes': 12, 'neto': np.float64(44.27), 'pred': np.float64(64.64), 'tipo': 'Real'}, {'label': 'Ene 2022', 'anio': 2022, 'mes': 1, 'neto': np.float64(38.11), 'pred': np.float64(12.68), 'tipo': 'Real'}, {'label': 'Feb 2022', 'anio': 2022, 'mes': 2, 'neto': np.float64(45.12), 'pred': np.float64(19.73), 'tipo': 'Real'}, {'label': 'Mar 2022', 'anio': 2022, 'mes': 3, 'neto': np.float64(54.43), 'pred': np.float64(148.3), 'tipo': 'Real'}, {'label': 'Abr 2022', 'anio': 2022, 'mes': 4, 'neto': np.float64(54.61), 'pred': np.float64(87.67), 'tipo': 'Real'}, {'label': 'May 2022', 'anio': 2022, 'mes': 5, 'neto': np.float64(62.09), 'pred': np.float64(92.71), 'tipo': 'Real'}, {'label': 'Jun 2022', 'anio': 2022, 'mes': 6, 'neto': np.float64(71.7), 'pred': np.float64(83.04), 'tipo': 'Real'}, {'label': 'Jul 2022', 'anio': 2022, 'mes': 7, 'neto': np.float64(75.63), 'pred': np.float64(81.69), 'tipo': 'Real'}, {'label': 'Ago 2022', 'anio': 2022, 'mes': 8, 'neto': np.float64(90.03), 'pred': np.float64(108.39), 'tipo': 'Real'}, {'label': 'Sep 2022', 'anio': 2022, 'mes': 9, 'neto': np.float64(95.92), 'pred': np.float64(130.78), 'tipo': 'Real'}, {'label': 'Oct 2022', 'anio': 2022, 'mes': 10, 'neto': np.float64(97.04), 'pred': np.float64(73.05), 'tipo': 'Real'}, {'label': 'Nov 2022', 'anio': 2022, 'mes': 11, 'neto': np.float64(108.13), 'pred': np.float64(95.66), 'tipo': 'Real'}, {'label': 'Dic 2022', 'anio': 2022, 'mes': 12, 'neto': np.float64(110.33), 'pred': np.float64(131.03), 'tipo': 'Real'}, {'label': 'Ene 2023', 'anio': 2023, 'mes': 1, 'neto': np.float64(100.4), 'pred': np.float64(82.66), 'tipo': 'Real'}, {'label': 'Feb 2023', 'anio': 2023, 'mes': 2, 'neto': np.float64(115.75), 'pred': np.float64(82.81), 'tipo': 'Real'}, {'label': 'Mar 2023', 'anio': 2023, 'mes': 3, 'neto': np.float64(145.58), 'pred': np.float64(214.49), 'tipo': 'Real'}, {'label': 'Abr 2023', 'anio': 2023, 'mes': 4, 'neto': np.float64(150.95), 'pred': np.float64(172.56), 'tipo': 'Real'}, {'label': 'May 2023', 'anio': 2023, 'mes': 5, 'neto': np.float64(169.12), 'pred': np.float64(192.6), 'tipo': 'Real'}, {'label': 'Jun 2023', 'anio': 2023, 'mes': 6, 'neto': np.float64(173.93), 'pred': np.float64(187.14), 'tipo': 'Real'}, {'label': 'Jul 2023', 'anio': 2023, 'mes': 7, 'neto': np.float64(222.32), 'pred': np.float64(189.03), 'tipo': 'Real'}, {'label': 'Ago 2023', 'anio': 2023, 'mes': 8, 'neto': np.float64(230.45), 'pred': np.float64(235.21), 'tipo': 'Real'}, {'label': 'Sep 2023', 'anio': 2023, 'mes': 9, 'neto': np.float64(258.5), 'pred': np.float64(286.17), 'tipo': 'Real'}, {'label': 'Oct 2023', 'anio': 2023, 'mes': 10, 'neto': np.float64(274.1), 'pred': np.float64(224.82), 'tipo': 'Real'}, {'label': 'Nov 2023', 'anio': 2023, 'mes': 11, 'neto': np.float64(283.84), 'pred': np.float64(272.91), 'tipo': 'Real'}, {'label': 'Dic 2023', 'anio': 2023, 'mes': 12, 'neto': np.float64(321.31), 'pred': np.float64(311.53), 'tipo': 'Real'}, {'label': 'Ene 2024', 'anio': 2024, 'mes': 1, 'neto': np.float64(297.37), 'pred': np.float64(278.7), 'tipo': 'Real'}, {'label': 'Feb 2024', 'anio': 2024, 'mes': 2, 'neto': np.float64(387.75), 'pred': np.float64(295.62), 'tipo': 'Real'}, {'label': 'Mar 2024', 'anio': 2024, 'mes': 3, 'neto': np.float64(445.25), 'pred': np.float64(451.39), 'tipo': 'Real'}, {'label': 'Abr 2024', 'anio': 2024, 'mes': 4, 'neto': np.float64(527.55), 'pred': np.float64(481.42), 'tipo': 'Real'}, {'label': 'May 2024', 'anio': 2024, 'mes': 5, 'neto': np.float64(565.71), 'pred': np.float64(544.8), 'tipo': 'Real'}, {'label': 'Jun 2024', 'anio': 2024, 'mes': 6, 'neto': np.float64(610.0), 'pred': np.float64(596.84), 'tipo': 'Real'}, {'label': 'Jul 2024', 'anio': 2024, 'mes': 7, 'neto': np.float64(702.1), 'pred': np.float64(614.53), 'tipo': 'Real'}, {'label': 'Ago 2024', 'anio': 2024, 'mes': 8, 'neto': np.float64(823.31), 'pred': np.float64(708.01), 'tipo': 'Real'}, {'label': 'Sep 2024', 'anio': 2024, 'mes': 9, 'neto': np.float64(837.05), 'pred': np.float64(844.05), 'tipo': 'Real'}, {'label': 'Oct 2024', 'anio': 2024, 'mes': 10, 'neto': np.float64(964.81), 'pred': np.float64(841.1), 'tipo': 'Real'}, {'label': 'Nov 2024', 'anio': 2024, 'mes': 11, 'neto': np.float64(954.98), 'pred': np.float64(913.38), 'tipo': 'Real'}, {'label': 'Dic 2024', 'anio': 2024, 'mes': 12, 'neto': np.float64(1091.65), 'pred': np.float64(1022.53), 'tipo': 'Real'}, {'label': 'Ene 2025', 'anio': 2025, 'mes': 1, 'neto': np.float64(894.52), 'pred': np.float64(1002.99), 'tipo': 'Real'}, {'label': 'Feb 2025', 'anio': 2025, 'mes': 2, 'neto': np.float64(875.05), 'pred': np.float64(993.94), 'tipo': 'Real'}, {'label': 'Mar 2025', 'anio': 2025, 'mes': 3, 'neto': np.float64(1037.8), 'pred': np.float64(938.78), 'tipo': 'Real'}, {'label': 'Abr 2025', 'anio': 2025, 'mes': 4, 'neto': np.float64(1042.85), 'pred': np.float64(1000.51), 'tipo': 'Real'}, {'label': 'May 2025', 'anio': 2025, 'mes': 5, 'neto': np.float64(1192.34), 'pred': np.float64(1122.22), 'tipo': 'Real'}, {'label': 'Jun 2025', 'anio': 2025, 'mes': 6, 'neto': np.float64(1206.03), 'pred': np.float64(1156.36), 'tipo': 'Real'}, {'label': 'Jul 2025', 'anio': 2025, 'mes': 7, 'neto': np.float64(1164.51), 'pred': np.float64(1254.73), 'tipo': 'Real'}, {'label': 'Ago 2025', 'anio': 2025, 'mes': 8, 'neto': np.float64(1153.74), 'pred': np.float64(1219.32), 'tipo': 'Real'}, {'label': 'Sep 2025', 'anio': 2025, 'mes': 9, 'neto': np.float64(1340.85), 'pred': np.float64(1194.45), 'tipo': 'Real'}, {'label': 'Oct 2025', 'anio': 2025, 'mes': 10, 'neto': np.float64(958.93), 'pred': np.float64(1236.48), 'tipo': 'Real'}, {'label': 'Nov 2025', 'anio': 2025, 'mes': 11, 'neto': np.float64(1078.03), 'pred': np.float64(1170.19), 'tipo': 'Real'}, {'label': 'Dic 2025', 'anio': 2025, 'mes': 12, 'neto': np.float64(936.8), 'pred': np.float64(952.58), 'tipo': 'Real'}, {'label': 'Ene 2026', 'anio': 2026, 'mes': 1, 'neto': np.float64(970.32), 'pred': np.float64(1000.49), 'tipo': 'Real'}, {'label': 'Feb 2026', 'anio': 2026, 'mes': 2, 'neto': np.float64(832.37), 'pred': np.float64(896.72), 'tipo': 'Real'}, {'label': 'Mar 2026', 'anio': 2026, 'mes': 3, 'neto': np.float64(1188.49), 'pred': np.float64(1008.9), 'tipo': 'Real'}, {'label': 'Abr 2026', 'anio': 2026, 'mes': 4, 'neto': np.float64(675.45), 'pred': np.float64(1037.45), 'tipo': 'Real'}, {'label': 'Abr 2026', 'anio': 2026, 'mes': 4, 'neto': None, 'pred': np.float64(1037.45), 'tipo': 'Predicción'}, {'label': 'May 2026', 'anio': 2026, 'mes': 5, 'neto': None, 'pred': np.float64(1235.42), 'tipo': 'Predicción'}, {'label': 'Jun 2026', 'anio': 2026, 'mes': 6, 'neto': None, 'pred': np.float64(1136.55), 'tipo': 'Predicción'}, {'label': 'Jul 2026', 'anio': 2026, 'mes': 7, 'neto': None, 'pred': np.float64(1245.93), 'tipo': 'Predicción'}, {'label': 'Ago 2026', 'anio': 2026, 'mes': 8, 'neto': None, 'pred': np.float64(1206.44), 'tipo': 'Predicción'}, {'label': 'Sep 2026', 'anio': 2026, 'mes': 9, 'neto': None, 'pred': np.float64(1300.45), 'tipo': 'Predicción'}, {'label': 'Oct 2026', 'anio': 2026, 'mes': 10, 'neto': None, 'pred': np.float64(1227.57), 'tipo': 'Predicción'}, {'label': 'Nov 2026', 'anio': 2026, 'mes': 11, 'neto': None, 'pred': np.float64(1283.25), 'tipo': 'Predicción'}, {'label': 'Dic 2026', 'anio': 2026, 'mes': 12, 'neto': None, 'pred': np.float64(1269.03), 'tipo': 'Predicción'}];
+    let chart;
+
+    function updateChart() {
+        const selectedYears = Array.from(document.getElementById('yearFilter').selectedOptions).map(o => parseInt(o.value));
+        const selectedMonths = Array.from(document.getElementById('monthFilter').selectedOptions).map(o => parseInt(o.value));
+        
+        const filtered = fullData.filter(d => selectedYears.includes(d.anio) && selectedMonths.includes(d.mes));
+        
+        const labels = filtered.map(d => d.label);
+        const netos = filtered.map(d => d.neto);
+        const preds = filtered.map(d => d.pred);
+
+        if(chart) chart.destroy();
+        
+        const ctx = document.getElementById('chart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Ventas Reales (M)', data: netos, backgroundColor: '#1a4fa0', borderRadius: 5 },
+                    { label: 'Tendencia/Predicción (M)', data: preds, type: 'line', borderColor: '#f28e2b', tension: 0.3, pointRadius: 4 }
+                ]
             },
-            scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v + 'M' } } }
-        }
-    });
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true, ticks: { callback: v => '$' + v + 'M' } } }
+            }
+        });
+    }
+    
+    updateChart(); // Carga inicial
 </script></body></html>
