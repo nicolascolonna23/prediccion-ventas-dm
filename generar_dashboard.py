@@ -38,11 +38,10 @@ for col in ["Neto", "Total"]:
     df_completo[col] = pd.to_numeric(df_completo[col], errors='coerce').fillna(0)
 
 df_completo.loc[(df_completo["Neto"] == 0) & (df_completo["Total"] > 0), "Neto"] = df_completo["Total"] / 1.21
-
 df_completo["Fecha"] = pd.to_datetime(df_completo["Fecha"], dayfirst=True, errors="coerce")
 df_completo = df_completo.dropna(subset=["Fecha"])
-df_completo["Anio"] = df_completo["Fecha"].dt.year
-df_completo["Mes"]  = df_completo["Fecha"].dt.month
+df_completo["Anio"] = df_completo["Fecha"].dt.year.astype(int)
+df_completo["Mes"]  = df_completo["Fecha"].dt.month.astype(int)
 
 mensual_full = df_completo.groupby(["Anio", "Mes"])["Neto"].sum().reset_index()
 mensual_full = mensual_full.sort_values(["Anio", "Mes"]).reset_index(drop=True)
@@ -82,29 +81,27 @@ ultimo_cerrado = m_entrenamiento.iloc[-1]
 lags = [float(ultimo_cerrado["Neto"]), float(m_entrenamiento.iloc[-2]["Neto"]), float(m_entrenamiento.iloc[-3]["Neto"])]
 predicciones_raw = []
 m_act, a_act = int(ultimo_cerrado["Mes"]), int(ultimo_cerrado["Anio"])
-pasos = 12 - m_act if a_act == hoy.year else 12
-
-for i in range(pasos):
+for i in range(12 - m_act if a_act == hoy.year else 12):
     m_act += 1
     if m_act > 12: m_act = 1; a_act += 1
     p = predecir_estacional(a_act, m_act, lags[0], lags[1], lags[2])
     predicciones_raw.append({"Anio": int(a_act), "Mes": int(m_act), "Neto": p})
     lags = [p, lags[0], lags[1]]
 
-# --- DATA JS ---
+# --- DATA PARA JS ---
 nombres_meses = {1:"Ene",2:"Feb",3:"Mar",4:"Abr",5:"May",6:"Jun",7:"Jul",8:"Ago",9:"Sep",10:"Oct",11:"Nov",12:"Dic"}
-data_js = []
+data_list = []
 for idx, r in mensual_full.iterrows():
     l1 = mensual_full.loc[idx-1, "Neto"] if idx > 0 else None
     l2 = mensual_full.loc[idx-2, "Neto"] if idx > 1 else None
     l3 = mensual_full.loc[idx-3, "Neto"] if idx > 2 else None
     p_val = round(predecir_estacional(r['Anio'], r['Mes'], l1, l2, l3)/1e6, 2) if l3 is not None else None
-    data_js.append({"label": f"{nombres_meses[int(r['Mes'])]} {int(r['Anio'])}", "anio": int(r['Anio']), "mes": int(r['Mes']), "neto": round(r['Neto']/1e6, 2), "pred": p_val})
+    data_list.append({"label": f"{nombres_meses[int(r['Mes'])]} {int(r['Anio'])}", "anio": int(r['Anio']), "mes": int(r['Mes']), "neto": round(r['Neto']/1e6, 2), "pred": p_val})
 
 for p in predicciones_raw:
-    data_js.append({"label": f"{nombres_meses[p['Mes']]} {p['Anio']}", "anio": p['Anio'], "mes": p['Mes'], "neto": None, "pred": round(p['Neto']/1e6, 2)})
+    data_list.append({"label": f"{nombres_meses[p['Mes']]} {p['Anio']}", "anio": p['Anio'], "mes": p['Mes'], "neto": None, "pred": round(p['Neto']/1e6, 2)})
 
-years_options = sorted(list(mensual_full['Anio'].unique()))
+years_list = sorted(list(mensual_full['Anio'].unique()))
 cards_html = "".join([f'<div class="card"><div class="card-label">{nombres_meses[p["Mes"]]} {p["Anio"]}</div><div class="card-value">$ {p["Neto"]/1e6:,.1f} M</div></div>' for p in predicciones_raw[:3]])
 
 html_content = f"""
@@ -121,21 +118,15 @@ html_content = f"""
     .card-value{{font-size:22px;font-weight:bold;color:#1a4fa0}}
     .filters{{background:#fff;padding:20px;border-radius:12px;margin-bottom:20px;display:flex;gap:20px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
     .filter-group{{flex:1}}
-    select{{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;height:80px}}
+    select{{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;height:120px}}
     .chart-box{{background:#fff;padding:20px;border-radius:12px;box-shadow:0 2px 5px rgba(0,0,0,0.05)}}
-    .info{{margin-top:20px;background:#eef2f7;padding:20px;border-radius:12px;font-size:14px;line-height:1.6}}
 </style></head><body>
 <div class="container">
-    <div class="header">
-        <img src="logo_dm.png" alt="DM" class="logo">
-        <div style="text-align:right"><h1>Dashboard Interactivo</h1><p>Ventas Nominales Proyectadas</p></div>
-    </div>
+    <div class="header"><img src="logo_dm.png" alt="DM" class="logo"><div style="text-align:right"><h1>Dashboard DM</h1><p>Control de Visualización</p></div></div>
     <div class="cards">{cards_html}</div>
     <div class="filters">
-        <div class="filter-group"><label><b>Años (Multiselección):</b></label><br>
-            <select id="yF" multiple onchange="uC()">
-                {"".join([f'<option value="{a}" selected>{a}</option>' for a in years_options])}
-            </select>
+        <div class="filter-group"><label><b>Años (Ctrl+clic):</b></label><br>
+            <select id="yF" multiple onchange="uC()"></select>
         </div>
         <div class="filter-group"><label><b>Meses:</b></label><br>
             <select id="mF" multiple onchange="uC()">
@@ -144,24 +135,32 @@ html_content = f"""
         </div>
     </div>
     <div class="chart-box"><canvas id="chart"></canvas></div>
-    <div class="info">
-        <h3>¿Cómo funciona este modelo?</h3>
-        <p>Este sistema utiliza <b>IA Estacional</b>: analiza los últimos 5 años de historia para entender que cada mes tiene un comportamiento único. Se basa en "Lags" (inercia de ventas de los últimos 3 meses cerrados) y variables estacionales para proyectar el resto del año. El mes en curso se excluye del entrenamiento para no distorsionar la tendencia.</p>
-    </div>
 </div>
 <script>
-    const d = {data_js}; let c;
+    const d = {data_list};
+    const ys = {years_list};
+    let c;
+
+    // Poblar años dinámicamente para evitar errores de Python
+    const yS = document.getElementById('yF');
+    ys.forEach(y => {{
+        let o = document.createElement('option');
+        o.value = y; o.text = y; o.selected = true;
+        yS.appendChild(o);
+    }});
+
     function uC() {{
         const sY = Array.from(document.getElementById('yF').selectedOptions).map(o=>parseInt(o.value));
         const sM = Array.from(document.getElementById('mF').selectedOptions).map(o=>parseInt(o.value));
         const f = d.filter(x => sY.includes(x.anio) && sM.includes(x.mes));
+        
         if(c) c.destroy();
         c = new Chart(document.getElementById('chart'), {{
             type: 'bar',
             data: {{
                 labels: f.map(x=>x.label),
                 datasets: [
-                    {{ label: 'Ventas Reales (M)', data: f.map(x=>x.neto), backgroundColor: '#1a4fa0', borderRadius: 5 }},
+                    {{ label: 'Ventas Reales (M)', data: f.map(x=>x.neto), backgroundColor: '#1a4fa0', borderRadius: 4 }},
                     {{ label: 'Proyección IA (M)', data: f.map(x=>x.pred), type: 'line', borderColor: '#f28e2b', tension: 0.3 }}
                 ]
             }},
